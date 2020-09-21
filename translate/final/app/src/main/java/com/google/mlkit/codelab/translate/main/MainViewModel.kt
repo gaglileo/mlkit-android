@@ -40,7 +40,7 @@ import com.google.mlkit.codelab.translate.main.MainFragment.Companion.DESIRED_WI
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    // TODO Instantiate LanguageIdentification
+    private val languageIdentifier = LanguageIdentification.getClient()
     val targetLang = MutableLiveData<Language>()
     val sourceText = SmoothedMutableLiveData<String>(SMOOTHING_DURATION)
 
@@ -74,13 +74,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val sourceLang = Transformations.switchMap(sourceText) { text ->
         val result = MutableLiveData<Language>()
-        // TODO  Call the language identification method and assigns the result if it is not
-        //  undefined (“und”)
+        languageIdentifier.identifyLanguage(text)
+            .addOnSuccessListener { languageCode ->
+                if (languageCode != "und")
+                    result.value = Language(languageCode)
+            }
         result
     }
 
     override fun onCleared() {
-        // TODO Shut down ML Kit clients.
+        languageIdentifier.close()
+        translators.evictAll()
     }
 
     private fun translate(): Task<String> {
