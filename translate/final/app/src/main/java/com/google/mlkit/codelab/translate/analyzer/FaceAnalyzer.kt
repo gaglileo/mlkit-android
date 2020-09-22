@@ -8,12 +8,11 @@ import androidx.camera.core.ImageProxy
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.MutableLiveData
 import com.google.android.gms.tasks.Task
-import com.google.mlkit.codelab.translate.util.ImageUtils
 import com.google.mlkit.common.MlKitException
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceDetection
-import com.google.mlkit.vision.text.Text
+import com.google.mlkit.vision.face.FaceDetectorOptions
 import java.lang.Exception
 
 class FaceAnalyzer(
@@ -23,7 +22,12 @@ class FaceAnalyzer(
     private val openEyes: MutableLiveData<String>
 ) : ImageAnalysis.Analyzer {
 
-    private val detector = FaceDetection.getClient()
+    private val highAccuracyOpts = FaceDetectorOptions.Builder()
+        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+        .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
+        .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
+        .build()
+    private val detector = FaceDetection.getClient(highAccuracyOpts)
 
     init {
         lifecycle.addObserver(detector)
@@ -46,7 +50,9 @@ class FaceAnalyzer(
         // Pass image to an ML Kit Vision API
         return detector.process(image)
             .addOnSuccessListener { list ->
+                Log.d(TAG, "Faces list ${list.size}")
                 val face = list.firstOrNull()
+                Log.d(TAG, "Face ${face?.smilingProbability} / ${face?.leftEyeOpenProbability} / ${face?.rightEyeOpenProbability}")
                 isSmiling.value = face?.smilingProbability ?: 0.0f >= 0.5f
                 openEyes.value = getEyesMessage(face?.leftEyeOpenProbability?:0.0f, face?.rightEyeOpenProbability?:0.0f)
                 Log.d(TAG, "Face detection success ${openEyes.value}")
