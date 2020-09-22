@@ -1,4 +1,4 @@
-package com.google.mlkit.codelab.translate.main
+package com.google.mlkit.codelab.translate.main.face
 
 import android.os.Bundle
 import android.util.DisplayMetrics
@@ -10,10 +10,14 @@ import android.view.ViewGroup
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Observer
 import com.google.mlkit.codelab.translate.R
+import com.google.mlkit.codelab.translate.analyzer.FaceAnalyzer
 import com.google.mlkit.codelab.translate.util.ScopedExecutor
+import kotlinx.android.synthetic.main.fragment_face.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.abs
@@ -23,11 +27,11 @@ import kotlin.math.min
 
 class FaceFragment : Fragment() {
 
-    private var displayId: Int = -1
-    private val viewModel: MainViewModel by viewModels()
+    private val viewModel: FaceViewModel by viewModels()
     private var cameraProvider: ProcessCameraProvider? = null
     private var camera: Camera? = null
     private var imageAnalyzer: ImageAnalysis? = null
+    private lateinit var container: ConstraintLayout
     private lateinit var viewFinder: PreviewView
 
     /** Blocking camera operations are performed using this executor */
@@ -54,13 +58,20 @@ class FaceFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        viewFinder = view.findViewById(R.id.previewView)
+        container = view as ConstraintLayout
+        viewFinder = container.findViewById(R.id.viewfinder)
 
         // Initialize our background executor
         cameraExecutor = Executors.newSingleThreadExecutor()
         scopedExecutor = ScopedExecutor(cameraExecutor)
 
         setUpCamera()
+        viewModel.isSmiling.observe(viewLifecycleOwner, Observer {
+            isSmilingText.text = if(it) "Stai sorridendo" else " Dai, sorridi!"
+        })
+        viewModel.openEyes.observe(viewLifecycleOwner, Observer {
+            isOpenEyesText.text = it
+        })
     }
 
     /** Initialize CameraX, and prepare to bind the camera use cases  */
@@ -92,6 +103,25 @@ class FaceFragment : Fragment() {
             .setTargetRotation(rotation)
             .build()
 
+        // Build the image analysis use case and instantiate our analyzer
+        imageAnalyzer = ImageAnalysis.Builder()
+            // We request aspect ratio but no resolution
+            .setTargetAspectRatio(screenAspectRatio)
+            .setTargetRotation(rotation)
+            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .build()
+            .also {
+                it.setAnalyzer(
+                    scopedExecutor
+                    , FaceAnalyzer(
+                        requireContext(),
+                        lifecycle,
+                        viewModel.isSmiling,
+                        viewModel.openEyes
+                    )
+                )
+            }
+
         // Select back camera since text detection does not work with front camera
         val cameraSelector =
             CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_FRONT).build()
@@ -102,7 +132,7 @@ class FaceFragment : Fragment() {
 
             // Bind use cases to camera
             camera = cameraProvider.bindToLifecycle(
-                this, cameraSelector, preview
+                this, cameraSelector, preview, imageAnalyzer
             )
             preview.setSurfaceProvider(viewFinder.surfaceProvider)
         } catch (exc: IllegalStateException) {

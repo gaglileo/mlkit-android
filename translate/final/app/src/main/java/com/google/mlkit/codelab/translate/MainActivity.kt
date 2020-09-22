@@ -19,7 +19,6 @@ package com.google.mlkit.codelab.translate
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import com.google.mlkit.codelab.translate.main.FaceFragment
 import com.google.mlkit.codelab.translate.main.MainFragment
 
 class MainActivity : AppCompatActivity() {
@@ -29,7 +28,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.main_activity)
         if (savedInstanceState == null) {
             supportFragmentManager.beginTransaction()
-                .replace(R.id.container, FaceFragment.newInstance())
+                .replace(R.id.container, MainFragment.newInstance())
                 .commitNow()
         }
     }

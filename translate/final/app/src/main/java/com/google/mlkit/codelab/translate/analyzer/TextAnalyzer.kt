@@ -109,6 +109,7 @@ class TextAnalyzer(
             .addOnSuccessListener { text ->
                 // Task completed successfully
                 result.value = text.text
+                Log.d(TAG, "Text recognition success ${text.text}")
             }
             .addOnFailureListener { exception ->
                 // Task failed with an exception
